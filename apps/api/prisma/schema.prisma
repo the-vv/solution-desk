@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ContentFormat {
+  MARKDOWN
+  PLAIN
+}
+
+enum ChangeType {
+  EDIT
+  DELETE
+}
+
+enum ChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  name        String
+  avatarUrl   String?
+  googleId    String   @unique
+  createdAt   DateTime @default(now())
+
+  memberships    Membership[]
+  problems       Problem[]
+  invitationsSent Invitation[]
+  attachments    Attachment[]
+  shareLinks     ShareLink[]
+  requests       ChangeRequest[] @relation("Requester")
+  reviews        ChangeRequest[] @relation("Reviewer")
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+
+  memberships    Membership[]
+  invitations    Invitation[]
+  problems       Problem[]
+  attachments    Attachment[]
+  changeRequests ChangeRequest[]
+}
+
+model Membership {
+  id        String   @id @default(uuid())
+  orgId     String
+  userId    String
+  role      Role
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id          String   @id @default(uuid())
+  orgId       String
+  email       String
+  role        Role
+  invitedById String
+  createdAt   DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedBy User         @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([email])
+}
+
+model Problem {
+  id        String        @id @default(uuid())
+  orgId     String
+  authorId  String
+  title     String
+  problem   String
+  solution  String
+  format    ContentFormat @default(MARKDOWN)
+  tags      String[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  org            Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  author         User            @relation(fields: [authorId], references: [id])
+  attachments    Attachment[]
+  shareLinks     ShareLink[]
+  changeRequests ChangeRequest[]
+
+  @@index([orgId, createdAt(sort: Desc)])
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  orgId        String
+  problemId    String?
+  uploadedById String
+  filename     String
+  mimeType     String
+  size         Int
+  storageKey   String   @unique
+  createdAt    DateTime @default(now())
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  problem    Problem?     @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  uploadedBy User         @relation(fields: [uploadedById], references: [id])
+
+  @@index([problemId])
+}
+
+model ShareLink {
+  id          String    @id @default(uuid())
+  problemId   String
+  token       String    @unique
+  createdById String
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id])
+
+  @@index([problemId])
+}
+
+model ChangeRequest {
+  id          String       @id @default(uuid())
+  orgId       String
+  problemId   String
+  requesterId String
+  type        ChangeType
+  payload     Json?
+  status      ChangeStatus @default(PENDING)
+  reviewerId  String?
+  reviewNote  String?
+  createdAt   DateTime     @default(now())
+  reviewedAt  DateTime?
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  problem   Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  requester User         @relation("Requester", fields: [requesterId], references: [id])
+  reviewer  User?        @relation("Reviewer", fields: [reviewerId], references: [id])
+
+  @@index([orgId, status])
+}

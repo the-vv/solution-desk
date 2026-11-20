@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: solution_desk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: solution_desk
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U solution_desk -d solution_desk']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: ${DOCKERHUB_USERNAME:?set DOCKERHUB_USERNAME in .env}/solution-desk-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://solution_desk:${POSTGRES_PASSWORD}@db:5432/solution_desk
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID in .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?set GOOGLE_CLIENT_SECRET in .env}
+      PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env}
+      UPLOAD_DIR: /data/uploads
+      PORT: '3000'
+    volumes:
+      - uploads:/data/uploads
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  web:
+    image: ${DOCKERHUB_USERNAME}/solution-desk-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '${WEB_BIND_ADDRESS:?set WEB_BIND_ADDRESS in .env}:${WEB_PORT:?set WEB_PORT in .env}:80'
+
+volumes:
+  db-data:
+  uploads:
