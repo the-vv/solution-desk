@@ -42,7 +42,7 @@
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",
-    "typescript": "~6.0.3"
+    "typescript": "~7.0.2"
   },
   "type": "module"
 }
