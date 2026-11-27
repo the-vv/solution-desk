@@ -30,7 +30,7 @@
     "@taiga-ui/polymorpheus": "^5.0.1",
     "@taiga-ui/styles": "^5.33.0",
     "dompurify": "^3.4.18",
-    "marked": "^18.2.1",
+    "marked": "^18.3.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
